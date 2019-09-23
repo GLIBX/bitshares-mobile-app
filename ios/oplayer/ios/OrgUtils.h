@@ -278,6 +278,11 @@ typedef void (^YklUserCallback)(id data);
  */
 + (NSString*)genBtsAddressFromWifPrivateKey:(NSString*)wif_private_key;
 
+/**
+ *  (public) 解码商人协议发票数据。成功返回 json，失败返回 nil。
+ */
++ (NSDictionary*)merchantInvoiceDecode:(NSString*)encoded_invoice;
+
 + (BOOL)writeFileAny:(id)data withFullPath:(NSString*)fullpath withDirPath:(NSString*)dirpath;
 
 + (BOOL)writeFile:(NSData*)data withFullPath:(NSString*)fullpath withDirPath:(NSString*)dirpath;
@@ -347,6 +352,19 @@ typedef void (^YklUserCallback)(id data);
 +(void)asyncFetchJson:(NSString*)pURL timeout:(NSTimeInterval)seconds completionBlock:(void (^)(id json))completion;
 +(WsPromise*)asyncPostUrl:(NSString*)pURL args:(NSDictionary*)kvhash;
 +(WsPromise*)asyncPostUrl_jsonBody:(NSString*)pURL args:(NSDictionary*)json;
+/**
+ * 异步等待，单位毫秒。
+ */
++ (WsPromise*)asyncWait:(NSInteger)ms;
+/**
+ * 通过水龙头注册账号，成功 resolve null，失败 resolve 错误信息。不会 reject。
+ */
++ (WsPromise*)asyncCreateAccountFromFaucet:(NSString*)name
+                                     owner:(NSString*)owner_key
+                                    active:(NSString*)active_key
+                                      memo:(NSString*)memo_key
+                                   refcode:(NSString*)refcode
+                                      chid:(NSInteger)chid;
 
 +(NSString*)md5:(NSString*)utf8string;
 +(NSString*)calcFileMD5:(NSString*)pFilePath;

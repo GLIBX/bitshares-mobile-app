@@ -28,6 +28,13 @@
 
 @interface NSString (Format)
 
+/**
+ *  URL 编码/解码
+ */
+- (NSString*)url_encode;
+
+- (NSString*)url_decode;
+
 @end
 
 typedef id (^RubyFilterMapFunction)(id src);
@@ -48,5 +55,12 @@ typedef void (^RubyFilterEachWithIndexFunction)(id src, NSInteger idx);
 @interface NSArray (SafeExt)
 
 - (id)safeObjectAtIndex:(NSUInteger)index;
+
+@end
+
+typedef void (^RubyApplyBody)(id obj);
+@interface NSObject (ScopingFunctions)
+
+- (id)ruby_apply:(RubyApplyBody)func;
 
 @end

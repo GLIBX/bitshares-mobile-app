@@ -130,8 +130,15 @@ class ActivityLaunch : BtsppActivity() {
      * 进入主界面
      */
     private fun _enterToMain() {
+        var homeClass: Class<*> = ActivityIndexMarkets::class.java
+        if (!BuildConfig.kAppModuleEnableTabMarket) {
+            homeClass = ActivityIndexCollateral::class.java
+        }
+        if (!BuildConfig.kAppModuleEnableTabDebt) {
+            homeClass = ActivityIndexServices::class.java
+        }
         val intent = Intent()
-        intent.setClass(this, ActivityIndexMarkets::class.java)
+        intent.setClass(this, homeClass)
         startActivity(intent)
     }
 
@@ -139,16 +146,19 @@ class ActivityLaunch : BtsppActivity() {
      * 检测更新
      */
     private fun checkUpdate(): Promise {
-        val p = Promise()
-        Utils.now_ts()
-        val version_url = "https://btspp.io/app/android/o_${_appNativeVersion}/version.json?t=${Date().time}"
-        OrgUtils.asyncJsonGet(version_url).then {
-            p.resolve(it as? JSONObject)
-            return@then null
-        }.catch {
-            p.resolve(null)
+        if (BuildConfig.kAppCheckUpdate) {
+            val p = Promise()
+            val version_url = "https://btspp.io/app/android/${BuildConfig.kAppChannelID}_$_appNativeVersion/version.json?t=${Date().time}"
+            OrgUtils.asyncJsonGet(version_url).then {
+                p.resolve(it as? JSONObject)
+                return@then null
+            }.catch {
+                p.resolve(null)
+            }
+            return p
+        } else {
+            return Promise._resolve(null)
         }
-        return p
     }
 
     /**
@@ -172,13 +182,24 @@ class ActivityLaunch : BtsppActivity() {
             //  初始化网络相关数据
             chainMgr.grapheneNetworkInit().then { data ->
                 //  初始化逻辑相关数据
-                val initTickerData = chainMgr.marketsInitAllTickerData()
-                val initGlobalProperties = connMgr.last_connection().async_exec_db("get_global_properties")
-                val initFeeAssetInfo = chainMgr.queryFeeAssetListDynamicInfo()  //  查询手续费兑换比例、手续费池等信息
-                return@then Promise.all(initTickerData, initGlobalProperties, initFeeAssetInfo).then { data_array ->
+                val walletMgr = WalletManager.sharedWalletManager()
+                val promise_map = JSONObject().apply {
+                    put("kInitTickerData", chainMgr.marketsInitAllTickerData())
+                    put("kInitGlobalProperties", connMgr.last_connection().async_exec_db("get_global_properties"))
+                    put("kInitFeeAssetInfo", chainMgr.queryFeeAssetListDynamicInfo())     //  查询手续费兑换比例、手续费池等信息
+                    if (walletMgr.isWalletExist() && walletMgr.isMissFullAccountData()) {
+                        put("kInitFullUserData", chainMgr.queryFullAccountInfo(walletMgr.getWalletInfo().getString("kAccountName")))
+                    }
+                }
+                return@then Promise.map(promise_map).then {
                     //  更新全局属性
-                    val data_array = data_array as JSONArray
-                    chainMgr.updateObjectGlobalProperties(data_array.getJSONObject(1))
+                    val data_hash = it as JSONObject
+                    chainMgr.updateObjectGlobalProperties(data_hash.getJSONObject("kInitGlobalProperties"))
+                    //  更新帐号完整数据
+                    val full_account_data = data_hash.optJSONObject("kInitFullUserData")
+                    if (full_account_data != null) {
+                        AppCacheManager.sharedAppCacheManager().updateWalletAccountInfo(full_account_data)
+                    }
                     //  初始化完成之后：启动计划调度任务
                     ScheduleManager.sharedScheduleManager().startTimer()
                     ScheduleManager.sharedScheduleManager().autoRefreshTickerScheduleByMergedMarketInfos()
@@ -186,11 +207,11 @@ class ActivityLaunch : BtsppActivity() {
                     p.resolve(true)
                     return@then null
                 }
-            }.catch { error ->
+            }.catch {
                 p.reject(resources.getString(R.string.tip_network_error))
             }
             return@then null
-        }.catch { error ->
+        }.catch {
             p.reject(resources.getString(R.string.tip_network_error))
         }
         return p

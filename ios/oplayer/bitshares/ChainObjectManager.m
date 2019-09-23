@@ -1514,13 +1514,29 @@ static ChainObjectManager *_sharedChainObjectManager = nil;
  */
 - (WsPromise*)queryFullAccountInfo:(NSString*)account_name_or_id
 {
+    return [self queryFullAccountInfo:account_name_or_id retry_num:5];
+}
+
+/**
+ *  (public) 查询完整账号信息，带重试。REMARK：刚注册成功的账号可能查询失败，网络尚未同步完毕。
+ */
+- (WsPromise*)queryFullAccountInfo:(NSString*)account_name_or_id retry_num:(NSInteger)retry_num
+{
     assert(account_name_or_id);
     //  TODO:fowallet 部分api结点，帐号不存在不是返回nil而是抛出异常。
     GrapheneApi* api = [[GrapheneConnectionManager sharedGrapheneConnectionManager] any_connection].api_db;
     return [[api exec:@"get_full_accounts" params:@[@[account_name_or_id], @FALSE]] then:(^id(id data) {
-        //  帐号不存在
-        if (!data || [data isKindOfClass:[NSNull class]] || [data count] <= 0){
-            return nil;
+        //  查询失败的情况下
+        if (!data || [data isKindOfClass:[NSNull class]] || [data count] <= 0 || retry_num == 5){
+            if (retry_num > 1) {
+                //  等待一会 & 重试
+                return [[OrgUtils asyncWait:2000] then:(^id(id data) {
+                    return [self queryFullAccountInfo:account_name_or_id retry_num:retry_num - 1];
+                })];
+            } else {
+                //  失败
+                return nil;
+            }
         }
         //  获取帐号信息
         id full_account_data = [[data objectAtIndex:0] objectAtIndex:1];
@@ -1529,6 +1545,46 @@ static ChainObjectManager *_sharedChainObjectManager = nil;
         [_cacheUserFullAccountData setObject:full_account_data forKey:account[@"id"]];
         [_cacheUserFullAccountData setObject:full_account_data forKey:account[@"name"]];
         return full_account_data;
+    })];
+}
+
+/**
+ * (public) 查询账号基本信息
+ */
+- (WsPromise*)queryAccountData:(NSString*)account_name_or_id
+{
+    GrapheneApi* api = [[GrapheneConnectionManager sharedGrapheneConnectionManager] any_connection].api_db;
+    return [[[api exec:@"get_accounts" params:@[@[[account_name_or_id lowercaseString]]]] then:(^id(id data_array) {
+        if (!data_array || [data_array isKindOfClass:[NSNull class]]) {
+            return nil;
+        }
+        if ([data_array count] <= 0) {
+            return nil;
+        }
+        return [data_array firstObject];
+    })] catch:(^id(id error) {
+        NSLog(@"%@", error);
+        return nil;
+    })];
+}
+
+/**
+ * (public) 查询资产基本信息
+ */
+- (WsPromise*)queryAssetData:(NSString*)asset_symbol_or_id
+{
+    GrapheneApi* api = [[GrapheneConnectionManager sharedGrapheneConnectionManager] any_connection].api_db;
+    return [[[api exec:@"get_assets" params:@[@[asset_symbol_or_id]]] then:(^id(id data_array) {
+        if (!data_array || [data_array isKindOfClass:[NSNull class]]) {
+            return nil;
+        }
+        if ([data_array count] <= 0) {
+            return nil;
+        }
+        return [data_array firstObject];
+    })] catch:(^id(id error) {
+        NSLog(@"%@", error);
+        return nil;
     })];
 }
 

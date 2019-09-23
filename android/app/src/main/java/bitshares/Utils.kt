@@ -1,19 +1,22 @@
 package bitshares
 
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Context.CLIPBOARD_SERVICE
-import android.content.pm.PackageManager
 import android.content.res.Resources
+import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.wifi.WifiManager
 import android.telephony.TelephonyManager
 import android.util.TypedValue
-import android.widget.ImageView
+import com.btsplusplus.fowallet.BuildConfig
 import com.btsplusplus.fowallet.R
-import com.qingmei2.library.encode.QRCodeEncoder
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.MultiFormatWriter
+import com.google.zxing.common.CharacterSetECI
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -21,6 +24,7 @@ import java.io.InputStreamReader
 import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.collections.HashMap
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -454,13 +458,7 @@ class Utils {
          * 获取APP版本号
          */
         fun appVersionName(ctx: Context): String {
-            try {
-                val package_info = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
-                return package_info.versionName
-            } catch (e: PackageManager.NameNotFoundException) {
-                //  TODO:代码里内置版本号，每次都要修改，虽然仅仅在获取异常的时候才会用到，考虑放到config。？
-                return "2.6"
-            }
+            return BuildConfig.VERSION_NAME
         }
 
         /**
@@ -588,20 +586,40 @@ class Utils {
         /**
          * 创建二维码到 ImageView
          */
-        fun createQRCodeImage(ctx: Context, text: String, out_image_view: ImageView) {
-            //构造方法：
-            val qrcode = QRCodeEncoder(ctx as Activity)
+        private fun createQRBitmap(text: String, width: Int): Bitmap? {
+            try {
+                val hints = HashMap<EncodeHintType, Any>()
+                hints[EncodeHintType.ERROR_CORRECTION] = ErrorCorrectionLevel.H
+                hints[EncodeHintType.CHARACTER_SET] = CharacterSetECI.UTF8
+                hints[EncodeHintType.MARGIN] = 1
 
-            qrcode.createQrCode2ImageView(text, out_image_view)
+                val bitMatrix = MultiFormatWriter().encode(text, BarcodeFormat.QR_CODE, width, width, hints)
 
-            //生成带Icon的二维码
-            // qrCodeEncoder.createQrCode2ImageView(textContent, ivQRCode, R.mipmap.ic_launcher)
+                val h = bitMatrix.height
+                val w = bitMatrix.width
+
+                val black = 0xFF000000.toInt()
+                val white = 0xFFFFFFFF.toInt()
+                val pixels = IntArray(w * h)
+                for (y in 0 until h) {
+                    for (x in 0 until w) {
+                        pixels[y * w + x] = if (bitMatrix.get(x, y)) black else white
+                    }
+                }
+
+                val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.RGB_565)
+                bitmap.setPixels(pixels, 0, w, 0, 0, w, h)
+
+                return bitmap
+            } catch (e: Exception) {
+                return null
+            }
         }
 
-        fun asyncCreateQRBitmap(ctx: Context, text: String, width: Int): Promise {
+        fun asyncCreateQRBitmap(text: String, width: Int): Promise {
             val p = Promise()
             Thread(Runnable {
-                p.resolve(QRCodeEncoder(ctx as Activity).createQrCode(text, width))
+                p.resolve(createQRBitmap(text, width))
             }).start()
             return p
         }

@@ -58,8 +58,18 @@ fun AppCompatActivity.setBottomNavigationStyle(position: Int) {
             bottom_nav_image_view_my.setColorFilter(color)
         }
     }
-    bottom_nav_markets_frame.setOnClickListener { goTo(ActivityIndexMarkets::class.java) }
-    bottom_nav_diya_frame.setOnClickListener { goTo(ActivityIndexCollateral::class.java) }
+    if (BuildConfig.kAppModuleEnableTabMarket) {
+        bottom_nav_markets_frame.visibility = View.VISIBLE
+        bottom_nav_markets_frame.setOnClickListener { goTo(ActivityIndexMarkets::class.java) }
+    } else {
+        bottom_nav_markets_frame.visibility = View.GONE
+    }
+    if (BuildConfig.kAppModuleEnableTabDebt) {
+        bottom_nav_markets_frame.visibility = View.VISIBLE
+        bottom_nav_diya_frame.setOnClickListener { goTo(ActivityIndexCollateral::class.java) }
+    } else {
+        bottom_nav_diya_frame.visibility = View.GONE
+    }
     bottom_nav_services_frame.setOnClickListener { goTo(ActivityIndexServices::class.java) }
     bottom_nav_my_frame.setOnClickListener { goTo(ActivityIndexMy::class.java) }
 }
@@ -222,17 +232,17 @@ fun android.app.Activity.showGrapheneError(error: Any?) {
             if (msg != "") {
                 //  特化错误信息
                 //  "Assert Exception: account: no such account"
-                if (msg.indexOf("no such account") > 0) {
+                if (msg.indexOf("no such account") >= 0) {
                     showToast(resources.getString(R.string.kGPErrorAccountNotExist))
                     return
                 }
-                if (msg.indexOf("Insufficient Balance") > 0) {
+                if (msg.indexOf("Insufficient Balance") >= 0) {
                     showToast(resources.getString(R.string.kGPErrorInsufficientBalance))
                     return
                 }
                 //  "Preimage size mismatch." or ""Provided preimage does not generate correct hash."
                 val lowermsg = msg.toLowerCase()
-                if (lowermsg.indexOf("preimage size") > 0 || lowermsg.indexOf("provided preimage") > 0) {
+                if (lowermsg.indexOf("preimage size") >= 0 || lowermsg.indexOf("provided preimage") >= 0) {
                     showToast(resources.getString(R.string.kGPErrorRedeemInvalidPreimage))
                     return
                 }
@@ -247,30 +257,6 @@ fun android.app.Activity.showGrapheneError(error: Any?) {
 fun Fragment.showGrapheneError(error: Any?) {
     this.activity?.showGrapheneError(error)
 }
-
-/**
- * (public) 辅助 - 显示水龙头的时的错误信息，根据 code 进行错误显示便于处理多语言。
- */
-fun android.app.Activity.showFaucetRegisterError(response: JSONObject?) {
-    if (response != null) {
-        val code = response.getInt("status")
-        if (code != 0) {
-            when (code) {
-                10 -> showToast(resources.getString(R.string.kLoginFaucetTipsInvalidArguments))
-                20 -> showToast(resources.getString(R.string.kLoginFaucetTipsInvalidAccountFmt))
-                30 -> showToast(resources.getString(R.string.kLoginFaucetTipsAccountAlreadyExist))
-                40 -> showToast(resources.getString(R.string.kLoginFaucetTipsUnknownError))
-                41 -> showToast(resources.getString(R.string.kLoginFaucetTipsDeviceRegTooMany))
-                42 -> showToast(resources.getString(R.string.kLoginFaucetTipsDeviceRegTooFast))
-                999 -> showToast(resources.getString(R.string.kLoginFaucetTipsServerMaintence))
-                else -> showToast(response.getString("msg"))
-            }
-        }
-    } else {
-        showToast(resources.getString(R.string.tip_network_error))
-    }
-}
-
 
 /**
  *  (private) 创建提案请求
@@ -459,12 +445,14 @@ fun android.app.Activity.openURL(url: String) {
     }
 }
 
-fun android.app.Activity.goTo(cls: Class<*>, transition_animation: Boolean = false, back: Boolean = false, args: Any? = null, request_code: Int = -1) {
+fun android.app.Activity.goTo(cls: Class<*>, transition_animation: Boolean = false, back: Boolean = false, args: Any? = null, request_code: Int = -1, close_self: Boolean = false) {
     val intent = Intent()
     intent.setClass(this, cls)
 
     if (back) {
+        //  清理堆栈
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        //  保留目标堆栈（不重新生成），否则会生成一个新的activity。
         intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 
@@ -482,6 +470,10 @@ fun android.app.Activity.goTo(cls: Class<*>, transition_animation: Boolean = fal
 
     if (!transition_animation) {
         overridePendingTransition(0, 0)
+    }
+
+    if (close_self) {
+        finish()
     }
 }
 

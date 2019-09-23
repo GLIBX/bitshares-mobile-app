@@ -13,6 +13,7 @@
 
 "kLabelMarketFavorites" = "Favorites";
 "kLabelGroupNameMain" = "Main";
+"kLabelGroupNameCommunity" = "Community";
 "kLabelGroupNameGDEX" = "GDEX(Gateway)";
 "kLabelGroupNameWWW" = "WWW(Gateway)";
 "kLabelGroupNameOPEN" = "OPEN(Gateway)";
@@ -50,6 +51,7 @@
 "kDebtWarmTips" = "[Tips] \n When the feed price drops to the call price, the system will automatically sell your collateral assets for debt repayment. Please pay attention to adjusting the ratio to control the risk.";
 
 /* 服务界面 */
+"kServicesCellLabelQrScan" = "Scan QR code";
 "kServicesCellLabelTransfer" = "Transfer";
 "kServicesCellLabelAccountSearch" = "Account search";
 "kServicesCellLabelRank" = "Rank";
@@ -57,6 +59,36 @@
 "kServicesCellLabelFeedPrice" = "Feed price details";
 "kServicesCellLabelDepositWithdraw" = "Deposit & Withdraw";
 "kServicesCellLabelAdvFunction" = "Advanced Features";
+
+/* 扫一扫相关字符串 */
+"kVcScanPermissionNoCamera" = "Your camera is not detected.";
+"kVcScanPermissionSystemLimit" = "The album could not be accessed for system reasons.";
+"kVcScanPermissionGotoSetting" = "Please go to the settings interface to allow the app to access the camera.";
+"kVcScanPermissionUserRejected" = "This feature is not supported without camera permissions.";
+"kVcScanAlbumClickedTips" = "Select QR code image";
+"kVcScanNaviTitleRightAlbum" = "Album";
+"kVcScanAutoScanTips" = "Put the QR code inside the border.";
+"kVcScanProcessingResult" = "Processing…";
+"kVcScanNoQrCode" = "No QR code found.";
+"kVcScanResultPriKeyTypeTitle" = "Key type";
+"kVcScanResultPriKeyTypeOwner" = "Owner";
+"kVcScanResultPriKeyTypeActive" = "Active";
+"kVcScanResultPriKeyTypeMemo" = "Memo";
+"kVcScanResultPriKeyBtnCreateAndImport" = "Create wallet & import key";
+"kVcScanResultPriKeyBtnImportNow" = "Import now";
+"kVcScanResultAccountBtnTransfer" = "Transfer";
+"kVcScanResultAccountBtnViewDetail" = "Account details";
+"kVcScanResultPayLabelAmount" = "Amount";
+"kVcScanResultPayLabelMemo" = "Memo";
+"kVcScanResultPaySubmitTipsToIsMyself" = "The payee is the same as the payment account.";
+"kVcScanResultPlaceholderInputPayAmount" = "Please enter the payment amount";
+"kVcScanResultPaySubmitTipsInputPayAmount" = "Please enter the payment amount.";
+"kVcScanResultPaySubmitTipsNotEnough" = "Insufficient balance.";
+"kVcScanResultBtnPayNow" = "Pay now";
+"kVcScanResultTipsPaySuccess" = "Payment completed";
+"kVcScanResultPaySuccessLabelTo" = "Receiver";
+"kVcScanResultPaySuccessLabelTrxID" = "Trx ID";
+"kVcScanResultPaySuccessBtnDone" = "Done";
 
 /* 抵押排行 */
 "kVcRankCurrentFeedPrice" = "Feed price";
@@ -600,6 +632,11 @@
 "kVcTitleLogin" = "Login";
 "kVcTitleImportAccount" = "Import account";
 "kVcTitleRegister" = "Register";
+"kVcTitleQrScan" = "Scan QR code";
+"kVcTitleQrScanResultNormal" = "Scan result";
+"kVcTitleQrScanResultPriKey" = "Import key";
+"kVcTitleQrScanResultAccount" = "Account info";
+"kVcTitleQrScanResultPay" = "Pay";
 "kVcTitleTransfer" = "Transfer";
 "kVcTitleConfirmTransaction" = "Please confirm the transaction";
 "kVcTitleCreateProposal" = "Please confirm the proposal";

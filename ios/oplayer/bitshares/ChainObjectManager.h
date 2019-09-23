@@ -246,6 +246,21 @@
 - (WsPromise*)queryFullAccountInfo:(NSString*)account_name_or_id;
 
 /**
+ *  (public) 查询完整账号信息，带重试。REMARK：刚注册成功的账号可能查询失败，网络尚未同步完毕。
+ */
+- (WsPromise*)queryFullAccountInfo:(NSString*)account_name_or_id retry_num:(NSInteger)retry_num;
+
+/**
+ * (public) 查询账号基本信息
+ */
+- (WsPromise*)queryAccountData:(NSString*)account_name_or_id;
+
+/**
+ * (public) 查询资产基本信息
+ */
+- (WsPromise*)queryAssetData:(NSString*)asset_symbol_or_id;
+
+/**
  * (public) 账号是否存在于区块链上
  */
 - (WsPromise*)isAccountExistOnBlockChain:(NSString*)account_name;

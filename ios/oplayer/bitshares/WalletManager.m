@@ -291,6 +291,87 @@ static int _unique_nonce_entropy = -1;              //  辅助生成 unique64 �
     return [[self getWalletInfo] objectForKey:@"kAccountName"];
 }
 
+/**
+ *  (public) 创建新钱包。
+ *  current_full_account_data   - 钱包当前账号  REMARK：创建后的当前账号，需要有完整的active权限。
+ *  pub_pri_keys_hash           - 需要导入的私钥Hash
+ *  append_memory_key           - 导入内存中已经存在的私钥 REMARK：需要钱包已解锁。
+ *  extra_account_name_list     - 除了当前账号外的其他需要同时导入的账号名。
+ *  pWalletPassword             - 新钱包的密码。
+ *  login_mode                  - 模式。
+ *  login_desc                  - 描述信息。
+ */
+- (EImportToWalletStatus)createNewWallet:(NSDictionary*)current_full_account_data
+                             import_keys:(NSDictionary*)pub_pri_keys_hash
+                       append_memory_key:(BOOL)append_memory_key
+                 extra_account_name_list:(NSArray*)extra_account_name_list
+                         wallet_password:(NSString*)pWalletPassword
+                              login_mode:(EWalletMode)login_mode
+                              login_desc:(NSString*)login_desc
+{
+    assert(current_full_account_data);
+    id account = [current_full_account_data objectForKey:@"account"];
+    NSString* currentAccountName = account[@"name"];
+    
+    //  合并所有KEY（参数中和内存中）
+    NSMutableDictionary* allPubPriKeyHash = [pub_pri_keys_hash mutableCopy];
+    if (append_memory_key) {
+        assert(![self isLocked]);
+        for (id pubkey in _private_keys_hash) {
+            id prikey = [_private_keys_hash objectForKey:pubkey];
+            [allPubPriKeyHash setObject:prikey forKey:pubkey];
+        }
+    }
+    
+    //  检测当前账号是否有完整的active权限。
+    id account_active = [account objectForKey:@"active"];
+    assert(account_active);
+    EAccountPermissionStatus status = [WalletManager calcPermissionStatus:account_active privateKeysHash:allPubPriKeyHash];
+    if (status == EAPS_NO_PERMISSION){
+        return EITWS_NO_PERMISSION;
+    }else if (status == EAPS_PARTIAL_PERMISSION){
+        return EITWS_PARTIAL_PERMISSION;
+    }
+
+    AppCacheManager* pAppCache = [AppCacheManager sharedAppCacheManager];
+    
+    //  获取所有需要导入到钱包中的账号名列表。
+    NSMutableArray* account_name_list = [NSMutableArray array];
+    [account_name_list addObject:currentAccountName];
+    if (extra_account_name_list && [extra_account_name_list count] > 0) {
+        NSMutableDictionary* extraNameHash = [NSMutableDictionary dictionary];
+        for (id name in extra_account_name_list) {
+            if (![name isEqualToString:currentAccountName]) {
+                [extraNameHash setObject:@YES forKey:name];
+            }
+        }
+        [account_name_list addObjectsFromArray:[extraNameHash allKeys]];
+    }
+    
+    //  创建钱包
+    id full_wallet_bin = [self genFullWalletData:[account_name_list copy]
+                                private_wif_keys:[allPubPriKeyHash allValues]
+                                 wallet_password:pWalletPassword];
+    //  保存钱包信息
+    [pAppCache setWalletInfo:login_mode
+                 accountInfo:current_full_account_data
+                 accountName:currentAccountName
+               fullWalletBin:full_wallet_bin];
+    [pAppCache autoBackupWalletToWebdir:NO];
+    
+    //  导入成功 用交易密码 直接解锁。
+    id unlockInfos = [self unLock:pWalletPassword];
+    assert(unlockInfos &&
+           [[unlockInfos objectForKey:@"unlockSuccess"] boolValue] &&
+           [[unlockInfos objectForKey:@"haveActivePermission"] boolValue]);
+    
+    //  [统计]
+    [OrgUtils logEvents:@"loginEvent" params:@{@"mode":@(login_mode), @"desc":login_desc ?: @"unknown"}];
+    
+    //  成功
+    return EITWS_OK;
+}
+
 - (BOOL)isLocked
 {
     //  无钱包
@@ -1091,12 +1172,20 @@ static int _unique_nonce_entropy = -1;              //  辅助生成 unique64 �
 /**
  *  (public) 创建完整钱包对象。直接返回二进制bin。
  */
-- (NSData*)genFullWalletData:(NSString*)account_name
+- (NSData*)genFullWalletData:(id)account_name_or_namelist
             private_wif_keys:(NSArray*)private_wif_keys
              wallet_password:(NSString*)wallet_password
 {
+    NSArray* account_name_list = nil;
+    if ([account_name_or_namelist isKindOfClass:[NSString class]]) {
+        account_name_list = @[account_name_or_namelist];
+    } else if ([account_name_or_namelist isKindOfClass:[NSArray class]]) {
+        account_name_list = account_name_or_namelist;
+    } else {
+        NSAssert(NO, @"invalid arguments.");
+    }
     //  生成json格式钱包
-    id full_wallet_object = [self genFullWalletObject:account_name
+    id full_wallet_object = [self genFullWalletObject:account_name_list
                                      private_wif_keys:private_wif_keys
                                       wallet_password:wallet_password];
     if (!full_wallet_object){
@@ -1111,11 +1200,11 @@ static int _unique_nonce_entropy = -1;              //  辅助生成 unique64 �
 /**
  *  (public) 创建完整钱包对象。
  */
-- (NSDictionary*)genFullWalletObject:(NSString*)account_name
+- (NSDictionary*)genFullWalletObject:(NSArray*)account_name_list
                     private_wif_keys:(NSArray*)private_wif_keys
                      wallet_password:(NSString*)wallet_password
 {
-    assert(account_name);
+    assert(account_name_list && [account_name_list count] > 0);
     assert(wallet_password);
     
     //  --- 1、生成&加密 核心密钥（用钱包密码（即交易密码）进行加密）
@@ -1174,10 +1263,10 @@ static int _unique_nonce_entropy = -1;              //  辅助生成 unique64 �
     NSString* created_time = [self genWalletTimeString:ceil([[NSDate date] timeIntervalSince1970])];
     
     //  part2
-    id linked_account = @{
-                          @"chainId":[ChainObjectManager sharedChainObjectManager].grapheneChainID,
-                          @"name":account_name
-                          };
+    id chain_id = [ChainObjectManager sharedChainObjectManager].grapheneChainID;
+    id linked_account_list = [account_name_list ruby_map:(^id(id account_name) {
+        return @{@"chainId":chain_id, @"name":account_name};
+    })];
     
     //  part3
     id wallet = @{
@@ -1198,7 +1287,7 @@ static int _unique_nonce_entropy = -1;              //  辅助生成 unique64 �
                   };
     
     id final_object = @{
-                        @"linked_accounts":@[linked_account],
+                        @"linked_accounts":linked_account_list,
                         @"private_keys":[private_keys copy],
                         @"wallet":@[wallet],
                         };

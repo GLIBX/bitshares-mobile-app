@@ -87,6 +87,19 @@
     return [output copy];
 }
 
+/**
+ *  URL 编码/解码
+ */
+- (NSString*)url_encode
+{
+    return (__bridge NSString*)CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault, (CFStringRef)self, nil, nil, kCFStringEncodingUTF8);
+}
+
+- (NSString*)url_decode
+{
+    return (__bridge NSString*)CFURLCreateStringByReplacingPercentEscapes(kCFAllocatorDefault, (CFStringRef)self, CFSTR(""));
+}
+
 @end
 
 /**
@@ -173,6 +186,16 @@
         return nil;
     }
     return [self objectAtIndex:index];
+}
+
+@end
+
+@implementation NSObject (ScopingFunctions)
+
+- (id)ruby_apply:(RubyApplyBody)func
+{
+    func(self);
+    return self;
 }
 
 @end
